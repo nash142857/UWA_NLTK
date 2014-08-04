@@ -1,4 +1,6 @@
+# coding=UTF-8
 from function import *
+
 class ngram:
 	bigram_word = set()
 	def __init__(self, language, number):
@@ -18,7 +20,7 @@ class ngram:
 		for x in self.d.values():
 			self.length += x * x
 		self.length **= 0.5
-
+		
 	def eva(self, setence):
 		pair = '   '
 		d1 = self.d
@@ -65,16 +67,33 @@ class guess:
 				idx = i
 		return idx
 
-	def pre_process(self, str):
-		res = ""
-		for char in str:
-			if char == '.' or char == '#' or char == '"':
-				pass
-			else:
-				res += char
+	def process(self, str):
+		l = len(str)
+		if l == 0:
+			return {}	
+		str = str.lower()
+		if str[-1] not in [' ', '.', ',']:
+			str += ' '
+		last_i =  0
+		i = 0
+		res = []
+		filter = ["http://", "@", "#"]
+		stop_char = [(',', ' '), (',','.',' '), (',','.',' ')]
+		while i < l:
+			for idx2, fil in enumerate(filter):
+				if str[i:].startswith(fil):
+					res += self.deal(str[last_i:i], 4)
+					idx = index(str[i:], stop_char[idx2])
+					res.append((fil, str[i:i + idx]))
+					i = i + idx
+					last_i = i
+			i += 1
+		if last_i != l:
+			res += self.deal(str[last_i:l], 4)
 		return res
+ 
 	def deal(self, str, n):
-		str = self.pre_process(str)
+		res = []
 		l = len(str)
 		i = 0
 		last_lan = None
@@ -96,7 +115,10 @@ class guess:
 			val = getvalue(str[i:i + nxtlen])
 			#first judge language
 			if nxtlen == 1:
-				lan = "latin"
+				if val >= ord('0') and val <= ord('9'):
+					lan = "Digit"
+				else:
+					lan = "latin"
 			elif nxtlen == 2:
 				if val > 0xc280 and val < 0xc9bf:
 					lan = "latin"
@@ -117,21 +139,24 @@ class guess:
 			if last_lan is not None and last_lan != lan:
 				#the second step to judge latin
 				if(last_lan == "latin"):
-					self.en_deal(str[last_idx:i], n)
+					res += self.en_deal(str[last_idx:i], n)
 				else:
-					print last_lan, str[last_idx:i]
+					res.append((last_lan, str[last_idx:i]))
 				last_idx = i
 
 			i += nxtlen
 			last_lan = lan
 
 		if last_lan == "latin":
-			self.en_deal(str[last_idx:l], n)
+			res += self.en_deal(str[last_idx:l], n)
 		else:
-			print last_lan, str[last_idx:l]
+			res.append((last_lan, str[last_idx:l]))
+
+		return res
 			
 
 	def en_deal(self, setence, n):
+		res = []
 		arr_word = setence.strip().split(' ')
 		idx = 0
 		last_lan = -1
@@ -154,9 +179,16 @@ class guess:
 					raise "no place to divide"
 				break_where.append(idx + n - 2 - break_pos)
 				idx = idx + n - 1 - break_pos
-				print guess.lan[last_lan], ' '.join(arr_word[last_divide + 1:idx])
+				res.append((guess.lan[last_lan], ' '.join(arr_word[last_divide + 1:idx])))
 				last_divide = idx - 1
 			else:
 				idx = idx + 1
 			last_lan = lan
-		print guess.lan[last_lan], ' '.join(arr_word[last_divide + 1:length])
+		res.append((guess.lan[last_lan], ' '.join(arr_word[last_divide + 1:length])))
+		return res
+
+#unit testing
+
+if __name__ == '__main__':
+	print guess().process("hello world1234,古慎龙,http://www.baidu.com, got it")
+
